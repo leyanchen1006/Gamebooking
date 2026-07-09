@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>组队排队器 · 游戏预约看板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#0B0E1A;
+    --panel:#151A2E;
+    --panel-raised:#1B2140;
+    --cyan:#4CE0D2;
+    --amber:#FFB238;
+    --magenta:#FF5C8A;
+    --mist:#C7CBE0;
+    --mist-dim:#7C82A6;
+    --line: rgba(199,203,224,0.14);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(76,224,210,0.10), transparent 45%),
+      radial-gradient(circle at 85% 15%, rgba(255,92,138,0.08), transparent 40%),
+      var(--void);
+    color:var(--mist);
+    font-family:'Space Grotesk', sans-serif;
+    min-height:100vh;
+    padding:32px 18px 80px;
+  }
+  .wrap{ max-width:760px; margin:0 auto; }
+
+  /* ---------- HERO ---------- */
+  .hero{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    gap:16px;
+    margin-bottom:28px;
+    flex-wrap:wrap;
+  }
+  .eyebrow{
+    font-family:'Press Start 2P', monospace;
+    font-size:9px;
+    letter-spacing:1px;
+    color:var(--cyan);
+    margin:0 0 12px;
+  }
+  h1{
+    font-family:'Press Start 2P', monospace;
+    font-size:22px;
+    line-height:1.6;
+    margin:0;
+    color:#fff;
+    text-shadow:0 0 18px rgba(76,224,210,0.35);
+  }
+  .queue-count{
+    text-align:right;
+  }
+  .queue-count .num{
+    font-family:'JetBrains Mono', monospace;
+    font-size:38px;
+    font-weight:600;
+    color:var(--amber);
+    line-height:1;
+  }
+  .queue-count .label{
+    font-size:11px;
+    color:var(--mist-dim);
+    letter-spacing:0.5px;
+    text-transform:uppercase;
+  }
+
+  /* ---------- FORM: coin-slot machine ---------- */
+  .machine{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:22px;
+    margin-bottom:36px;
+    position:relative;
+    overflow:hidden;
+  }
+  .machine::before{
+    content:"";
+    position:absolute;
+    top:0; left:0; right:0; height:3px;
+    background:linear-gradient(90deg, var(--cyan), var(--magenta), var(--amber));
+  }
+  .machine h2{
+    font-size:13px;
+    text-transform:uppercase;
+    letter-spacing:1.5px;
+    color:var(--mist-dim);
+    margin:2px 0 18px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .machine h2::before{
+    content:"▸";
+    color:var(--cyan);
+  }
+  .field-row{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+    margin-bottom:12px;
+  }
+  @media (max-width:520px){ .field-row{ grid-template-columns:1fr; } }
+  label{
+    display:block;
+    font-size:11px;
+    color:var(--mist-dim);
+    margin-bottom:6px;
+    letter-spacing:0.3px;
+  }
+  input[type=text], input[type=datetime-local], select, textarea{
+    width:100%;
+    background:var(--void);
+    border:1px solid var(--line);
+    color:#fff;
+    padding:11px 12px;
+    border-radius:8px;
+    font-family:'Space Grotesk', sans-serif;
+    font-size:14px;
+    outline:none;
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  input::placeholder{ color:var(--mist-dim); }
+  input:focus, select:focus, textarea:focus{
+    border-color:var(--cyan);
+    box-shadow:0 0 0 3px rgba(76,224,210,0.15);
+  }
+  .field-full{ margin-bottom:16px; }
+  .submit-btn{
+    width:100%;
+    background:var(--cyan);
+    color:#04211E;
+    border:none;
+    padding:13px;
+    border-radius:8px;
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size:14px;
+    letter-spacing:0.5px;
+    cursor:pointer;
+    transition:transform .1s ease, background .15s ease;
+  }
+  .submit-btn:hover{ background:#6CEBDE; }
+  .submit-btn:active{ transform:scale(0.98); }
+  .submit-btn:disabled{ opacity:0.5; cursor:not-allowed; }
+  .form-msg{
+    font-size:12px;
+    margin-top:10px;
+    min-height:16px;
+    color:var(--magenta);
+  }
+
+  /* ---------- SECTION LABEL ---------- */
+  .section-label{
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:1.5px;
+    color:var(--mist-dim);
+    margin:0 0 16px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .section-label::after{
+    content:"";
+    flex:1;
+    height:1px;
+    background:var(--line);
+  }
+
+  /* ---------- TICKETS ---------- */
+  .tickets{ display:flex; flex-direction:column; gap:14px; }
+  .ticket{
+    position:relative;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:16px 18px 16px 20px;
+    display:grid;
+    grid-template-columns:auto 1fr auto;
+    gap:16px;
+    align-items:center;
+    animation:rise .25s ease;
+  }
+  @keyframes rise{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+  .ticket.today{ border-color:rgba(255,178,56,0.5); box-shadow:0 0 0 1px rgba(255,178,56,0.15); }
+
+  /* perforated notch edge */
+  .ticket::before, .ticket::after{
+    content:"";
+    position:absolute;
+    width:14px; height:14px;
+    background:var(--void);
+    border-radius:50%;
+    top:50%;
+    transform:translateY(-50%);
+  }
+  .ticket::before{ left:-7px; }
+  .ticket::after{ right:-7px; }
+
+  .ticket-num{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    color:var(--mist-dim);
+    writing-mode:vertical-rl;
+    letter-spacing:1px;
+  }
+  .ticket-main{ min-width:0; }
+  .ticket-top{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-bottom:6px;
+  }
+  .badge{
+    font-size:11px;
+    font-weight:600;
+    padding:4px 10px;
+    border-radius:999px;
+    background:rgba(76,224,210,0.12);
+    color:var(--cyan);
+    border:1px solid rgba(76,224,210,0.3);
+    white-space:nowrap;
+  }
+  .ticket-name{
+    font-weight:700;
+    color:#fff;
+    font-size:15px;
+  }
+  .party{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    margin-top:8px;
+  }
+  .pchip{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    background:var(--panel-raised);
+    border:1px solid var(--line);
+    border-radius:999px;
+    padding:4px 6px 4px 10px;
+    font-size:12.5px;
+    color:var(--mist);
+  }
+  .pchip .pname{ font-weight:600; color:#fff; }
+  .pchip .pnote{ color:var(--mist-dim); font-size:11px; }
+  .pchip .pdel{
+    background:transparent;
+    border:none;
+    color:var(--mist-dim);
+    cursor:pointer;
+    font-size:12px;
+    width:18px; height:18px;
+    border-radius:50%;
+    line-height:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .pchip .pdel:hover{ color:var(--magenta); background:rgba(255,92,138,0.12); }
+  .party-count{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    color:var(--amber);
+    margin-left:auto;
+  }
+  .ticket-time{
+    font-family:'JetBrains Mono', monospace;
+    font-size:13px;
+    color:var(--amber);
+  }
+  .ticket-note{
+    font-size:12.5px;
+    color:var(--mist-dim);
+    margin-top:4px;
+    word-break:break-word;
+  }
+  .del-btn{
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--mist-dim);
+    width:30px; height:30px;
+    border-radius:8px;
+    cursor:pointer;
+    font-size:14px;
+    line-height:1;
+    transition:all .15s ease;
+    flex-shrink:0;
+  }
+  .del-btn:hover{
+    border-color:var(--magenta);
+    color:var(--magenta);
+    background:rgba(255,92,138,0.08);
+  }
+
+  /* ---------- EMPTY STATE ---------- */
+  .empty{
+    text-align:center;
+    padding:50px 20px;
+    color:var(--mist-dim);
+    border:1px dashed var(--line);
+    border-radius:12px;
+    font-size:13px;
+    line-height:1.8;
+  }
+  .empty .big{
+    font-family:'Press Start 2P', monospace;
+    font-size:12px;
+    color:var(--mist);
+    display:block;
+    margin-bottom:10px;
+  }
+
+  .loading{ text-align:center; padding:40px; color:var(--mist-dim); font-size:13px; }
+  .shared-note{
+    font-size:11px;
+    color:var(--mist-dim);
+    text-align:center;
+    margin-top:28px;
+    letter-spacing:0.3px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="setupScreen" style="display:none;">
+    <p class="eyebrow">SETUP REQUIRED</p>
+    <h1 style="font-size:16px; line-height:1.7;">先配置一次<br>Bmob 后端</h1>
+    <div class="machine" style="margin-top:20px;">
+      <h2>填写 Bmob 密钥</h2>
+      <p style="font-size:13px; line-height:1.9; color:var(--mist); margin:0 0 18px;">
+        请在源代码里找到 <code style="color:var(--amber);">BMOB_APP_ID</code> 和
+        <code style="color:var(--amber);">BMOB_REST_API_KEY</code>，替换成你 Bmob 应用里的真实值。
+        页面会自动使用 <code style="color:var(--amber);">GameReservations</code> 表保存预约记录；
+        第一次提交时，Bmob 会自动创建这张表。
+      </p>
+      <div style="background:var(--void); border:1px solid var(--line); border-radius:8px; padding:14px; font-size:12px; line-height:1.8; color:var(--mist-dim);">
+        const BMOB_APP_ID = "你的 Application ID";<br>
+        const BMOB_REST_API_KEY = "你的 REST API Key";
+      </div>
+    </div>
+  </div>
+
+  <div id="appScreen" style="display:none;">
+    <div class="hero">
+      <div>
+        <p class="eyebrow">SQUAD QUEUE SYSTEM</p>
+        <h1>游戏预约<br>看板</h1>
+      </div>
+      <div class="queue-count">
+        <div class="num" id="queueNum">--</div>
+        <div class="label">排队中</div>
+      </div>
+    </div>
+
+    <div class="machine">
+      <h2>插入预约 · New Reservation</h2>
+      <div class="field-row">
+        <div>
+          <label for="fName">预约人</label>
+          <input type="text" id="fName" placeholder="你的名字" maxlength="20">
+        </div>
+        <div>
+          <label for="fGame">游戏类型</label>
+          <input type="text" id="fGame" placeholder="例如：英雄联盟 / 原神 / 密室" maxlength="30">
+        </div>
+      </div>
+      <div class="field-full">
+        <label for="fTime">预约时间</label>
+        <input type="datetime-local" id="fTime">
+      </div>
+      <div class="field-full">
+        <label for="fNote">备注（可选）</label>
+        <input type="text" id="fNote" placeholder="人数、房间号、段位要求…" maxlength="60">
+      </div>
+      <button class="submit-btn" id="submitBtn">加入排队</button>
+      <div class="form-msg" id="formMsg"></div>
+    </div>
+
+    <p class="section-label">即将开始</p>
+    <div id="listArea"><div class="loading">读取预约中…</div></div>
+
+    <p class="shared-note">此看板对所有访问者共享可见，任何人都可以添加或删除预约。</p>
+  </div>
+
+</div>
+
+<script>
+// ============================================================
+// 把下面两个占位符换成 Bmob 后台里的真实密钥
+// Bmob 控制台 -> 你的应用 -> 应用密钥
+// ============================================================
+const BMOB_APP_ID = "PUT_YOUR_BMOB_APP_ID_HERE";
+const BMOB_REST_API_KEY = "PUT_YOUR_BMOB_REST_API_KEY_HERE";
+
+const BMOB_BASE = "https://api2.bmob.cn/1/classes";
+const BMOB_CLASS = "GameReservations";
+
+const listArea = document.getElementById('listArea');
+const queueNum = document.getElementById('queueNum');
+const submitBtn = document.getElementById('submitBtn');
+const formMsg = document.getElementById('formMsg');
+
+let groups = []; // { id, game, time, participants:[{pid,name,note}] }
+
+function normGame(g){ return g.trim().toLowerCase().replace(/\s+/g,''); }
+
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+function fmtTime(iso){
+  const d = new Date(iso);
+  if(isNaN(d)) return iso;
+  const now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  const opts = sameDay
+    ? { hour:'2-digit', minute:'2-digit' }
+    : { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' };
+  const prefix = sameDay ? '今天 ' : '';
+  return prefix + d.toLocaleString('zh-CN', opts);
+}
+
+function isToday(iso){
+  const d = new Date(iso);
+  const now = new Date();
+  return d.toDateString() === now.toDateString();
+}
+
+function bmobHeaders(){
+  return {
+    'X-Bmob-Application-Id': BMOB_APP_ID,
+    'X-Bmob-REST-API-Key': BMOB_REST_API_KEY,
+    'Content-Type': 'application/json'
+  };
+}
+
+async function bmobRequest(path, options = {}){
+  const res = await fetch(`${BMOB_BASE}/${BMOB_CLASS}${path}`, {
+    ...options,
+    headers: {
+      ...bmobHeaders(),
+      ...(options.headers || {})
+    }
+  });
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : null;
+  if(!res.ok){
+    const message = data && (data.error || data.msg) ? (data.error || data.msg) : 'HTTP ' + res.status;
+    throw new Error(message);
+  }
+  return data;
+}
+
+function fromBmob(row){
+  return {
+    id: row.objectId,
+    game: row.game || '',
+    time: row.time || '',
+    participants: Array.isArray(row.participants) ? row.participants : []
+  };
+}
+
+async function fetchReservations(){
+  const data = await bmobRequest('?order=time&limit=1000', {
+    headers: { 'Accept': 'application/json' }
+  });
+  return Array.isArray(data.results) ? data.results.map(fromBmob) : [];
+}
+
+async function createGroup(g){
+  const data = await bmobRequest('', {
+    method: 'POST',
+    body: JSON.stringify({
+      game: g.game,
+      normGame: normGame(g.game),
+      time: g.time,
+      participants: g.participants
+    })
+  });
+  g.id = data.objectId;
+  return g;
+}
+
+async function updateGroup(g){
+  await bmobRequest('/' + encodeURIComponent(g.id), {
+    method: 'PUT',
+    body: JSON.stringify({
+      game: g.game,
+      normGame: normGame(g.game),
+      time: g.time,
+      participants: g.participants
+    })
+  });
+}
+
+async function deleteGroup(id){
+  await bmobRequest('/' + encodeURIComponent(id), { method: 'DELETE' });
+}
+
+async function loadReservations(){
+  try{
+    const items = await fetchReservations();
+    items.sort((a,b) => new Date(a.time) - new Date(b.time));
+    groups = items;
+    render();
+  }catch(e){
+    listArea.innerHTML = `<div class="empty">读取失败：${escapeHtml(e.message || String(e))}<br>请检查网络或刷新重试。</div>`;
+    console.error('load error', e);
+  }
+}
+
+function totalPeople(){
+  return groups.reduce((sum, g) => sum + g.participants.length, 0);
+}
+
+function render(){
+  queueNum.textContent = totalPeople();
+
+  if(groups.length === 0){
+    listArea.innerHTML = `
+      <div class="empty">
+        <span class="big">QUEUE EMPTY</span>
+        还没有人预约，来占第一个坑位吧
+      </div>`;
+    return;
+  }
+
+  listArea.innerHTML = groups.map((g, idx) => `
+    <div class="ticket ${isToday(g.time) ? 'today' : ''}">
+      <div class="ticket-num">NO.${String(idx+1).padStart(3,'0')}</div>
+      <div class="ticket-main">
+        <div class="ticket-top">
+          <span class="badge">${escapeHtml(g.game)}</span>
+          <span class="party-count">${g.participants.length} 人拼场</span>
+        </div>
+        <div class="ticket-time">${fmtTime(g.time)}</div>
+        <div class="party">
+          ${g.participants.map(p => `
+            <span class="pchip">
+              <span class="pname">${escapeHtml(p.name)}</span>
+              ${p.note ? `<span class="pnote">· ${escapeHtml(p.note)}</span>` : ''}
+              <button class="pdel" data-gid="${g.id}" data-pid="${p.pid}" title="取消这个人的预约">✕</button>
+            </span>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  listArea.querySelectorAll('.pdel').forEach(btn=>{
+    btn.addEventListener('click', () => removeParticipant(btn.dataset.gid, btn.dataset.pid));
+  });
+}
+
+async function removeParticipant(gid, pid){
+  try{
+    // 重新拉取最新数据，减少和其他人同时操作时互相覆盖的概率
+    groups = await fetchReservations();
+
+    const g = groups.find(x => x.id === gid);
+    if(!g) return;
+    g.participants = g.participants.filter(p => p.pid !== pid);
+
+    if(g.participants.length === 0){
+      await deleteGroup(g.id);
+      groups = groups.filter(x => x.id !== gid);
+    }else{
+      await updateGroup(g);
+    }
+
+    render();
+  }catch(e){
+    console.error('delete error', e);
+    alert('取消失败：' + (e.message || e));
+  }
+}
+
+async function submitReservation(){
+  const name = document.getElementById('fName').value.trim();
+  const game = document.getElementById('fGame').value.trim();
+  const time = document.getElementById('fTime').value;
+  const note = document.getElementById('fNote').value.trim();
+
+  if(!name || !game || !time){
+    formMsg.textContent = '请填写预约人、游戏类型和时间';
+    return;
+  }
+
+  formMsg.textContent = '';
+  submitBtn.disabled = true;
+  submitBtn.textContent = '排队中…';
+
+  try{
+    // 先拉取最新数据，避免覆盖掉别人刚提交的预约
+    groups = await fetchReservations();
+
+    let g = groups.find(x => normGame(x.game) === normGame(game) && x.time === time);
+    const pid = Date.now().toString(36) + Math.random().toString(36).slice(2,5);
+
+    if(g){
+      g.participants.push({ pid, name, note });
+      await updateGroup(g);
+    }else{
+      g = {
+        game, time,
+        participants: [{ pid, name, note }]
+      };
+      await createGroup(g);
+      groups.push(g);
+    }
+
+    groups.sort((a,b) => new Date(a.time) - new Date(b.time));
+    render();
+
+    document.getElementById('fName').value = '';
+    document.getElementById('fGame').value = '';
+    document.getElementById('fTime').value = '';
+    document.getElementById('fNote').value = '';
+  }catch(e){
+    console.error('submit error', e);
+    formMsg.textContent = '提交失败：' + (e.message || e);
+  }finally{
+    submitBtn.disabled = false;
+    submitBtn.textContent = '加入排队';
+  }
+}
+
+submitBtn.addEventListener('click', submitReservation);
+
+// default the time picker to the next half hour
+function setDefaultTime(){
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  d.setSeconds(0,0);
+  const mins = d.getMinutes();
+  d.setMinutes(mins < 30 ? 30 : 60);
+  document.getElementById('fTime').value = d.toISOString().slice(0,16);
+}
+
+function init(){
+  const isConfigured =
+    BMOB_APP_ID && BMOB_APP_ID !== 'PUT_YOUR_BMOB_APP_ID_HERE' &&
+    BMOB_REST_API_KEY && BMOB_REST_API_KEY !== 'PUT_YOUR_BMOB_REST_API_KEY_HERE';
+
+  if(!isConfigured){
+    document.getElementById('setupScreen').style.display = 'block';
+    return;
+  }
+
+  document.getElementById('appScreen').style.display = 'block';
+  setDefaultTime();
+  loadReservations();
+}
+
+init();
+</script>
+</body>
+</html>
